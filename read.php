@@ -1,44 +1,62 @@
-<?php
-// Database connection details
-$host = 'sql307.infinityfree.com'; // Replace with your host
-$dbname = 'if0_37529186_timetable';  // Replace with your database name
-$username = 'if0_37529186';  // Replace with your MySQL username
-$password = 'Chentuo123';      // Replace with your MySQL password
- 
-// Create a connection
-try {
-    $conn = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
+<?php 
+// Database configuration
+$host = 'sql307.infinityfree.com'; // Replace with your database host
+$dbname = 'if0_37529205_week4441'; // Replace with your database name
+$username = 'if0_37529205'; // Replace with your MySQL username
+$password = 'a631187919'; // Replace with your MySQL password
+
+// Create a connection to the database
+$conn = new mysqli($host, $username, $password, $dbname);
+
+// Check if the connection was successful
+if ($conn->connect_error) {
+    // If the connection fails, output an error message and terminate the script
+    die(json_encode(['status' => 'error', 'message' => 'Connection failed: ' . $conn->connect_error]));
 }
- 
-// Fetch data from the student table
-$sql = "SELECT * FROM timetable";
-$stmt = $conn->prepare($sql);
-$stmt->execute();
- 
-// Check if records exist
-if ($stmt->rowCount() > 0) {
-    echo "<h2>Beck Timetable</h2>";
-    echo "<table border='1'>";
-    echo "<tr><th>id</th><th>subject</th><th>day</th><th>time</th><th>teacher</th></tr>";
- 
-    // Output data of each row
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        echo "<tr>";
-        echo "<td>" . $row['id'] . "</td>";
-        echo "<td>" . $row['subject'] . "</td>";
-        echo "<td>" . $row['day'] . "</td>";
-        echo "<td>" . $row['time'] . "</td>";
-        echo "<td>" . $row['teacher'] . "</td>";
-        echo "</tr>";
+
+// Retrieve the raw input data from the HTTP request input stream
+$data = file_get_contents('php://input');
+// Decode the JSON string into a PHP array
+$classes = json_decode($data, true);
+
+// Check if data was sent
+if (!empty($classes)) {
+    // Prepare the SQL statement to prevent SQL injection attacks
+    $stmt = $conn->prepare("INSERT INTO timetable (subject, day, time, teacher) VALUES (?, ?, ?, ?)");
+    // Check if the prepared statement was successful
+    if ($stmt === false) {
+        echo json_encode(['status' => 'error', 'message' => 'Prepare failed: ' . $conn->error]);
+        exit;
     }
-    echo "</table>";
+
+    // Loop through all the class data
+    foreach ($classes as $class) {
+        // Extract the class information from the array
+        $subject = $class['subject'];
+        $day = $class['day'];
+        $time = $class['time'];
+        $teacher = $class['teacher'];
+
+        // Bind parameters to the prepared statement
+        $stmt->bind_param("ssss", $subject, $day, $time, $teacher);
+
+        // Execute the prepared statement
+        if (!$stmt->execute()) {
+            echo json_encode(['status' => 'error', 'message' => 'Error inserting data: ' . $stmt->error]);
+            exit;
+        }
+    }
+
+    // Close the prepared statement
+    $stmt->close();
+
+    // Output a success message
+    echo json_encode(['status' => 'success', 'message' => 'Data saved successfully!']);
 } else {
-    echo "No records found.";
+    // If no data was sent, output an error message
+    echo json_encode(['status' => 'error', 'message' => 'No data received!']);
 }
- 
-// Close the connection
-$conn = null;
+
+// Close the database connection
+$conn->close();
 ?>
